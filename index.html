@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Weather Machine</title>
+<style>
+  :root{
+    --bg:#eef5f8;
+    --panel:#ffffff;
+    --ink:#17324a;
+    --muted:#607486;
+    --line:#d7e2e8;
+    --accent:#2c7895;
+    --accent-dark:#1f5d74;
+    --good:#2f7d4a;
+    --warn:#9a6500;
+    --soft:#f5fafc;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:linear-gradient(#eaf4f8,#f8fbfc);
+    color:var(--ink);
+  }
+  .wrap{width:min(1180px,100%);margin:auto;padding:20px}
+  header{text-align:center;padding:8px 0 18px}
+  h1{font-size:clamp(2rem,5vw,3.5rem);margin:0 0 6px;line-height:1}
+  header p{margin:0;color:var(--muted)}
+  .challengebar{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+  .challengebar button{
+    border:1px solid var(--line);background:#fff;color:var(--ink);
+    border-radius:999px;padding:10px 14px;font-weight:700;cursor:pointer
+  }
+  .challengebar button.active{background:var(--accent);color:white;border-color:var(--accent)}
+  .challenge{
+    border-left:5px solid var(--accent);
+    padding:12px 14px;background:var(--soft);border-radius:10px;margin-bottom:16px;
+  }
+  .challenge strong{display:block;margin-bottom:4px}
+  .grid{display:grid;grid-template-columns:1.08fr .92fr;gap:18px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:18px;
+    box-shadow:0 12px 35px rgba(23,50,74,.07);
+  }
+  .sky{
+    position:relative;overflow:hidden;height:340px;border-radius:18px;
+    background:linear-gradient(#65afe0,#dff2fb 65%,#8ab46f 66%,#5f8a49 100%);
+    border:1px solid var(--line);
+  }
+  .sun{
+    position:absolute;right:34px;top:28px;width:66px;height:66px;border-radius:50%;
+    background:#ffd85a;box-shadow:0 0 28px rgba(255,216,90,.7)
+  }
+  .cloud{
+    position:absolute;left:50%;top:82px;transform:translateX(-50%);
+    width:190px;height:62px;border-radius:40px;background:#f2f5f7;
+    opacity:0;transition:opacity .25s,filter .25s,transform .25s;
+    box-shadow:-46px 8px 0 -4px #f2f5f7,48px 12px 0 -2px #f2f5f7;
+  }
+  .cloud:before,.cloud:after{content:"";position:absolute;background:inherit;border-radius:50%}
+  .cloud:before{width:80px;height:80px;left:28px;top:-34px}
+  .cloud:after{width:70px;height:70px;right:28px;top:-28px}
+  .rain{position:absolute;left:50%;top:152px;transform:translateX(-50%);opacity:0;font-size:58px}
+  .bolt{position:absolute;left:53%;top:120px;opacity:0;font-size:58px}
+  .parcel{
+    position:absolute;left:24px;bottom:78px;width:44px;height:44px;border:3px solid #fff;
+    border-radius:50%;background:rgba(255,255,255,.2);display:grid;place-items:center;
+    font-size:24px;transition:bottom .3s;
+  }
+  .front{
+    position:absolute;left:-30%;bottom:70px;width:52%;height:120px;
+    background:linear-gradient(115deg,rgba(80,139,214,0),rgba(80,139,214,.38));
+    transform:skewX(-18deg);opacity:0;transition:left .4s,opacity .3s;
+  }
+  .front.on{left:0;opacity:1}
+  .groundlabel{
+    position:absolute;left:14px;bottom:10px;padding:6px 9px;border-radius:8px;
+    background:rgba(255,255,255,.78);font-weight:800;font-size:.9rem
+  }
+  .status{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
+  @media(max-width:520px){.status{grid-template-columns:1fr}}
+  .pill{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fbfdfe}
+  .pill b{display:block;font-size:.82rem;color:var(--muted);margin-bottom:2px}
+  .controls h2,.results h2{margin:0 0 12px}
+  .control{margin:16px 0}
+  .control-top{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+  .control label{font-weight:800}
+  .value{font-variant-numeric:tabular-nums;font-weight:900;color:var(--accent-dark)}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  select,textarea,input[type=text]{
+    width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;
+    background:#fff;color:var(--ink);font-size:1rem
+  }
+  textarea{min-height:76px;resize:vertical}
+  .results{margin-top:14px}
+  .bigresult{border-radius:16px;padding:14px;border:1px solid var(--line);background:#fbfdfe}
+  .bigresult .weather{font-size:1.55rem;font-weight:900;margin-bottom:6px}
+  .why{color:var(--muted);line-height:1.45}
+  .goal{
+    margin-top:12px;padding:12px;border-radius:12px;background:var(--soft);
+    border:1px solid var(--line);font-weight:800
+  }
+  .goal.good{background:#eef8f1;border-color:#b7d9c2;color:var(--good)}
+  .reset{
+    width:100%;margin-top:10px;padding:12px;border:0;border-radius:12px;
+    background:#edf3f6;color:var(--ink);font-weight:800;cursor:pointer
+  }
+  .notebook{
+    margin-top:18px;
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+  }
+  @media(max-width:900px){.notebook{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.notebook{grid-template-columns:1fr}}
+  .note-card{
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:14px;
+    background:#fff;
+  }
+  .note-card h3{margin:0 0 8px;font-size:1rem}
+  .note-card p{margin:0 0 8px;color:var(--muted);font-size:.9rem}
+  .note-card textarea{min-height:94px}
+  .labnote{margin-top:14px;font-size:.87rem;color:var(--muted);line-height:1.45}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🌦️ The Weather Machine</h1>
+    <p>Predict. Test. Observe. Explain.</p>
+  </header>
+
+  <div class="challengebar" aria-label="Choose an experiment">
+    <button type="button" data-ch="cloud" class="active">1. Make a Cloud</button>
+    <button type="button" data-ch="rain">2. Make It Rain</button>
+    <button type="button" data-ch="storm">3. Build a Storm</button>
+    <button type="button" data-ch="front">4. Send a Cold Front</button>
+  </div>
+
+  <div class="challenge" id="challengeText">
+    <strong>Experiment 1: Make a Cloud</strong>
+    Change the atmosphere until a cloud forms. What had to happen?
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <div class="sky" aria-label="Weather visualization">
+        <div class="sun"></div>
+        <div class="front" id="frontVisual"></div>
+        <div class="cloud" id="cloud"></div>
+        <div class="rain" id="rain">🌧️</div>
+        <div class="bolt" id="bolt">⚡</div>
+        <div class="parcel" id="parcel">↑</div>
+        <div class="groundlabel">Surface</div>
+      </div>
+
+      <div class="status">
+        <div class="pill"><b>Dew point</b><span id="dew">—</span></div>
+        <div class="pill"><b>Estimated cloud base</b><span id="lcl">—</span></div>
+        <div class="pill"><b>Effective lift</b><span id="effLift">—</span></div>
+        <div class="pill"><b>Atmosphere</b><span id="stability">—</span></div>
+      </div>
+    </section>
+
+    <section class="card controls">
+      <h2>Change the atmosphere</h2>
+
+      <div class="control">
+        <div class="control-top">
+          <label for="temp">Surface temperature</label>
+          <span class="value" id="tempVal"></span>
+        </div>
+        <input id="temp" type="range" min="40" max="100" value="75" step="1">
+      </div>
+
+      <div class="control">
+        <div class="control-top">
+          <label for="humidity">Relative humidity</label>
+          <span class="value" id="humidityVal"></span>
+        </div>
+        <input id="humidity" type="range" min="10" max="100" value="40" step="1">
+      </div>
+
+      <div class="control">
+        <div class="control-top">
+          <label for="aloft">Temperature aloft</label>
+          <span class="value" id="aloftVal"></span>
+        </div>
+        <input id="aloft" type="range" min="-20" max="60" value="35" step="1">
+      </div>
+
+      <div class="control">
+        <div class="control-top">
+          <label for="lift">Lift the air</label>
+          <span class="value" id="liftVal"></span>
+        </div>
+        <input id="lift" type="range" min="0" max="10000" value="0" step="250">
+      </div>
+
+      <div class="control">
+        <label for="front">Approaching air mass</label>
+        <select id="front">
+          <option value="none">None</option>
+          <option value="cold">Cold front</option>
+          <option value="warm">Warm front</option>
+        </select>
+      </div>
+
+      <button class="reset" type="button" id="reset">Reset experiment</button>
+
+      <div class="results">
+        <h2>What happened?</h2>
+        <div class="bigresult">
+          <div class="weather" id="weather">Clear</div>
+          <div class="why" id="why"></div>
+        </div>
+        <div class="goal" id="goal">Goal: Make a cloud form.</div>
+      </div>
+
+      <div class="labnote">
+        <strong>Model note:</strong> This is a simplified classroom model. It shows relationships among moisture, cooling, lift, fronts, clouds, rain, and storm development. Real weather is more complex.
+      </div>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:18px">
+    <h2 style="margin-top:0">🧪 Your Lab Notebook</h2>
+    <div class="notebook">
+      <div class="note-card">
+        <h3>1. Predict</h3>
+        <p>Before changing anything, what do you think you need to change?</p>
+        <textarea id="predict" placeholder="I predict that..."></textarea>
+      </div>
+      <div class="note-card">
+        <h3>2. Test</h3>
+        <p>What did you change in the Weather Machine?</p>
+        <textarea id="test" placeholder="I changed..."></textarea>
+      </div>
+      <div class="note-card">
+        <h3>3. Observe</h3>
+        <p>What happened to the weather?</p>
+        <textarea id="observe" placeholder="I observed..."></textarea>
+      </div>
+      <div class="note-card">
+        <h3>4. Explain</h3>
+        <p>Why do you think the weather changed?</p>
+        <textarea id="explain" placeholder="This happened because..."></textarea>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const el=id=>document.getElementById(id);
+  const temp=el('temp'), humidity=el('humidity'), aloft=el('aloft'), lift=el('lift'), front=el('front');
+  const challengeText=el('challengeText'), goal=el('goal');
+  let challenge='cloud';
+
+  const presets={
+    cloud:{temp:75,humidity:40,aloft:35,lift:0,front:'none',
+      title:'Experiment 1: Make a Cloud',
+      text:'Change the atmosphere until a cloud forms. What had to happen?',
+      goal:'Goal: Make a cloud form.'},
+    rain:{temp:78,humidity:55,aloft:32,lift:1000,front:'none',
+      title:'Experiment 2: Make It Rain',
+      text:'Start with moist air. Can you create enough cooling and lift for precipitation?',
+      goal:'Goal: Produce rain.'},
+    storm:{temp:82,humidity:55,aloft:35,lift:1000,front:'none',
+      title:'Experiment 3: Build a Storm',
+      text:'Create conditions favorable for a thunderstorm. Think: warmth, moisture, instability, and lift.',
+      goal:'Goal: Create thunderstorm-favorable conditions.'},
+    front:{temp:80,humidity:68,aloft:30,lift:500,front:'none',
+      title:'Experiment 4: Send a Cold Front',
+      text:'Begin with a warm, humid atmosphere. Then send in a cold front and observe what changes.',
+      goal:'Goal: Use a cold front to force air upward and change the weather.'}
+  };
+
+  function dewPointF(Tf,RH){
+    const Tc=(Tf-32)*5/9;
+    const a=17.625,b=243.04;
+    const gamma=Math.log(RH/100)+(a*Tc)/(b+Tc);
+    const Td=(b*gamma)/(a-gamma);
+    return Td*9/5+32;
+  }
+
+  function update(){
+    const T=+temp.value,RH=+humidity.value,Ta=+aloft.value,liftFt=+lift.value;
+    const Td=dewPointF(T,RH);
+    const lcl=Math.max(0,228*(T-Td));
+    let frontLift=0;
+    if(front.value==='cold') frontLift=2500;
+    if(front.value==='warm') frontLift=1200;
+    const effectiveLift=liftFt+frontLift;
+
+    const spread=T-Ta;
+    const unstable=spread>=40;
+    const veryUnstable=spread>=50;
+
+    const cloud=effectiveLift>=lcl && RH>=45;
+    const rain=cloud && RH>=65 && effectiveLift>=lcl+1500;
+    const storm=rain && T>=72 && RH>=60 && unstable && effectiveLift>=lcl+3000;
+
+    el('tempVal').textContent=T+'°F';
+    el('humidityVal').textContent=RH+'%';
+    el('aloftVal').textContent=Ta+'°F';
+    el('liftVal').textContent=liftFt.toLocaleString()+' ft';
+    el('dew').textContent=Td.toFixed(0)+'°F';
+    el('lcl').textContent=Math.round(lcl/100)*100+' ft';
+    el('effLift').textContent=Math.round(effectiveLift/100)*100+' ft';
+    el('stability').textContent=veryUnstable?'Very unstable':unstable?'Unstable':'More stable';
+
+    el('parcel').style.bottom=(78+Math.min(180,effectiveLift/55))+'px';
+    el('cloud').style.opacity=cloud?'1':'0';
+    el('cloud').style.filter=rain?'brightness(.78)':'none';
+    el('rain').style.opacity=rain?'1':'0';
+    el('bolt').style.opacity=storm?'1':'0';
+    el('frontVisual').classList.toggle('on',front.value==='cold');
+
+    let weather='Clear / mostly clear';
+    let why='The air has not been lifted enough to cool to its dew point.';
+    if(cloud){
+      weather='Cloud forming';
+      why='Rising air cooled enough to reach saturation, so water vapor can condense.';
+    }
+    if(rain){
+      weather='Rain possible';
+      why='Moist air has been lifted beyond the estimated cloud base, allowing a deeper cloud to develop.';
+    }
+    if(storm){
+      weather='Thunderstorm-favorable';
+      why='Warm, moist surface air + strong lift + much colder air aloft creates an unstable setup favorable for thunderstorms.';
+    }
+    if(front.value==='cold') why+=' The cold front adds lift by forcing warmer air upward.';
+    if(front.value==='warm' && cloud) why+=' The warm front adds gentler lifting as warm air rises over cooler air.';
+
+    el('weather').textContent=weather;
+    el('why').textContent=why;
+
+    let success=false;
+    if(challenge==='cloud') success=cloud;
+    if(challenge==='rain') success=rain;
+    if(challenge==='storm') success=storm;
+    if(challenge==='front') success=(front.value==='cold' && cloud);
+
+    goal.classList.toggle('good',success);
+    goal.textContent=success?'✓ Challenge achieved! Now explain what caused the change.':presets[challenge].goal;
+  }
+
+  function clearNotebook(){
+    ['predict','test','observe','explain'].forEach(id=>el(id).value='');
+  }
+
+  function loadChallenge(name){
+    challenge=name;
+    const p=presets[name];
+    temp.value=p.temp; humidity.value=p.humidity; aloft.value=p.aloft; lift.value=p.lift; front.value=p.front;
+    challengeText.innerHTML='<strong>'+p.title+'</strong>'+p.text;
+    document.querySelectorAll('[data-ch]').forEach(b=>b.classList.toggle('active',b.dataset.ch===name));
+    goal.classList.remove('good');
+    clearNotebook();
+    update();
+  }
+
+  [temp,humidity,aloft,lift,front].forEach(x=>x.addEventListener('input',update));
+  document.querySelectorAll('[data-ch]').forEach(b=>b.addEventListener('click',()=>loadChallenge(b.dataset.ch)));
+  el('reset').addEventListener('click',()=>loadChallenge(challenge));
+
+  loadChallenge('cloud');
+})();
+</script>
+</body>
+</html>
