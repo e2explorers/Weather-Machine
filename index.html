@@ -126,6 +126,44 @@
   .note-card p{margin:0 0 8px;color:var(--muted);font-size:.9rem}
   .note-card textarea{min-height:94px}
   .labnote{margin-top:14px;font-size:.87rem;color:var(--muted);line-height:1.45}
+  .print-tools{
+    margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:16px;
+    background:var(--soft);display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;
+  }
+  .print-tools label{display:block;font-weight:800;margin-bottom:6px}
+  .print-btn{
+    min-height:46px;padding:12px 18px;border:0;border-radius:12px;
+    background:var(--accent);color:white;font-weight:900;cursor:pointer;
+  }
+  .print-btn:hover{background:var(--accent-dark)}
+  #printReport{display:none}
+
+  @media(max-width:560px){
+    .print-tools{grid-template-columns:1fr}
+  }
+
+  @media print{
+    body{background:#fff;color:#000}
+    .wrap > header,
+    .challengebar,
+    .challenge,
+    .grid,
+    .card:not(#printReport){display:none !important}
+    #printReport{
+      display:block !important;
+      border:0;box-shadow:none;padding:0;margin:0;background:#fff;color:#000;
+    }
+    .print-page{font-family:Arial,sans-serif;font-size:11pt;line-height:1.35}
+    .print-page h1{font-size:22pt;margin:0 0 4px}
+    .print-page h2{font-size:15pt;margin:18px 0 8px;border-bottom:1px solid #999;padding-bottom:4px}
+    .print-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+    .print-box{border:1px solid #aaa;border-radius:8px;padding:10px}
+    .print-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .print-notes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .print-note{border:1px solid #aaa;border-radius:8px;padding:10px;min-height:95px;white-space:pre-wrap}
+    .print-footer{margin-top:14px;font-size:9pt;color:#555}
+    @page{size:letter;margin:.55in}
+  }
 </style>
 </head>
 <body>
@@ -252,6 +290,56 @@
         <textarea id="explain" placeholder="This happened because..."></textarea>
       </div>
     </div>
+
+    <div class="print-tools">
+      <div>
+        <label for="studentName">Student name for printed lab page</label>
+        <input id="studentName" type="text" placeholder="Your name">
+      </div>
+      <button class="print-btn" type="button" id="printFindings">🖨️ Print My Lab Findings</button>
+    </div>
+  </section>
+
+  <section class="card" id="printReport" aria-hidden="true">
+    <div class="print-page">
+      <h1>🌦️ The Weather Machine — Lab Findings</h1>
+      <div id="printSubtitle"></div>
+
+      <div class="print-meta">
+        <div class="print-box"><strong>Student:</strong> <span id="pName"></span></div>
+        <div class="print-box"><strong>Date:</strong> <span id="pDate"></span></div>
+      </div>
+
+      <h2>Atmospheric Conditions Tested</h2>
+      <div class="print-grid">
+        <div class="print-box"><strong>Surface temperature:</strong> <span id="pTemp"></span></div>
+        <div class="print-box"><strong>Relative humidity:</strong> <span id="pHumidity"></span></div>
+        <div class="print-box"><strong>Temperature aloft:</strong> <span id="pAloft"></span></div>
+        <div class="print-box"><strong>Manual lift:</strong> <span id="pLift"></span></div>
+        <div class="print-box"><strong>Approaching air mass:</strong> <span id="pFront"></span></div>
+        <div class="print-box"><strong>Estimated dew point:</strong> <span id="pDew"></span></div>
+        <div class="print-box"><strong>Estimated cloud base:</strong> <span id="pLcl"></span></div>
+        <div class="print-box"><strong>Atmospheric stability:</strong> <span id="pStability"></span></div>
+      </div>
+
+      <h2>Result</h2>
+      <div class="print-box">
+        <strong id="pWeather"></strong>
+        <div id="pWhy" style="margin-top:6px"></div>
+      </div>
+
+      <h2>Predict • Test • Observe • Explain</h2>
+      <div class="print-notes">
+        <div><strong>Predict</strong><div class="print-note" id="pPredict"></div></div>
+        <div><strong>Test</strong><div class="print-note" id="pTest"></div></div>
+        <div><strong>Observe</strong><div class="print-note" id="pObserve"></div></div>
+        <div><strong>Explain</strong><div class="print-note" id="pExplain"></div></div>
+      </div>
+
+      <div class="print-footer">
+        This is a simplified classroom model. Real weather systems involve additional variables and interactions.
+      </div>
+    </div>
   </section>
 </div>
 
@@ -370,6 +458,34 @@
   [temp,humidity,aloft,lift,front].forEach(x=>x.addEventListener('input',update));
   document.querySelectorAll('[data-ch]').forEach(b=>b.addEventListener('click',()=>loadChallenge(b.dataset.ch)));
   el('reset').addEventListener('click',()=>loadChallenge(challenge));
+
+  function fillPrintReport(){
+    const p=presets[challenge];
+    el('printSubtitle').textContent=p.title;
+    el('pName').textContent=el('studentName').value.trim() || '________________________';
+    el('pDate').textContent=new Date().toLocaleDateString();
+    el('pTemp').textContent=el('tempVal').textContent;
+    el('pHumidity').textContent=el('humidityVal').textContent;
+    el('pAloft').textContent=el('aloftVal').textContent;
+    el('pLift').textContent=el('liftVal').textContent;
+    el('pFront').textContent=front.options[front.selectedIndex].text;
+    el('pDew').textContent=el('dew').textContent;
+    el('pLcl').textContent=el('lcl').textContent;
+    el('pStability').textContent=el('stability').textContent;
+    el('pWeather').textContent=el('weather').textContent;
+    el('pWhy').textContent=el('why').textContent;
+    el('pPredict').textContent=el('predict').value.trim() || ' ';
+    el('pTest').textContent=el('test').value.trim() || ' ';
+    el('pObserve').textContent=el('observe').value.trim() || ' ';
+    el('pExplain').textContent=el('explain').value.trim() || ' ';
+  }
+
+  el('printFindings').addEventListener('click',()=>{
+    fillPrintReport();
+    window.print();
+  });
+
+  window.addEventListener('beforeprint',fillPrintReport);
 
   loadChallenge('cloud');
 })();
